@@ -1,0 +1,5 @@
+{
+  "summary": "Script SQL DDL para crear las tablas de Clientes, Vehículos, Servicios y Stock en Supabase con Foreign Keys, índices y políticas RLS.",
+  "updatedAt": "2026-10-06T15:44:28.009492500Z",
+  "userFacing": true
+}

@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AutoGest Pro - Sistema de Gestión para Talleres Mecánicos</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Remixicon for modern, lightweight icons -->
+  <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
+  <!-- Supabase JS Client -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Mercado Pago SDK V2 -->
+  <script src="https://sdk.mercadopago.com/js/v2"></script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="logo">
+          <i class="ri-tools-fill logo-icon"></i>
+          <div>
+            <h1 class="logo-title">AutoGest<span>PRO</span></h1>
+            <p class="logo-subtitle">Taller & Lubricentro</p>
+          </div>
+        </div>
+        <button class="btn-icon mobile-only" id="btn-close-sidebar" aria-label="Cerrar menú">
+          <i class="ri-close-line"></i>
+        </button>
+      </div>
+
+      <nav class="sidebar-nav">
+        <ul>
+          <li>
+            <button class="nav-item active" data-module="dashboard">
+              <i class="ri-dashboard-3-line"></i>
+              <span>Dashboard</span>
+            </button>
+          </li>
+          <li>
+            <button class="nav-item" data-module="clientes-vehiculos">
+              <i class="ri-user-star-line"></i>
+              <span>Clientes y Vehículos</span>
+            </button>
+          </li>
+          <li>
+            <button class="nav-item" data-module="taller">
+              <i class="ri-file-list-3-line"></i>
+              <span>Órdenes de Trabajo</span>
+            </button>
+          </li>
+          <li>
+            <button class="nav-item" data-module="cobros">
+              <i class="ri-bank-card-line"></i>
+              <span>Cobros & MP</span>
+              <span class="badge badge-mp">MP Bricks</span>
+            </button>
+          </li>
+          <li>
+            <button class="nav-item" data-module="stock">
+              <i class="ri-box-3-line"></i>
+              <span>Stock e Insumos</span>
+              <span class="badge badge-warning" id="stock-alert-count">0</span>
+            </button>
+          </li>
+          <li>
+            <button class="nav-item" data-module="turnos">
+              <i class="ri-calendar-schedule-line"></i>
+              <span>Turnos & Agenda</span>
+            </button>
+          </li>
+        </ul>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="supabase-status-indicator" id="supabase-status">
+          <span class="status-dot online"></span>
+          <div class="status-text">
+            <small>Supabase Cloud</small>
+            <span id="connection-state">Modo Demo / Local</span>
+          </div>
+        </div>
+        <button class="btn-config-supabase" id="btn-open-config" title="Configurar credenciales de Supabase">
+          <i class="ri-settings-3-line"></i> Configurar API
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <div class="main-wrapper">
+      <!-- Top App Bar -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <button class="btn-icon mobile-only" id="btn-toggle-sidebar" aria-label="Abrir menú">
+            <i class="ri-menu-line"></i>
+          </button>
+          <div class="quick-search">
+            <i class="ri-search-line"></i>
+            <input type="text" id="global-license-search" placeholder="Búsqueda rápida por Patente (ej: AA123BB)...">
+          </div>
+        </div>
+
+        <div class="topbar-right">
+          <div class="taller-info">
+            <span class="taller-name">Taller Central - Box 1</span>
+            <span class="taller-date" id="current-date-time"></span>
+          </div>
+          <button class="btn btn-primary btn-sm" id="btn-quick-new-order">
+            <i class="ri-add-line"></i> Nueva Orden
+          </button>
+        </div>
+      </header>
+
+      <!-- Main Dynamic Content Container -->
+      <main class="content-body">
+
+        <!-- 1. DASHBOARD MODULE -->
+        <section id="module-dashboard" class="module-section active">
+          <div class="section-header">
+            <div>
+              <h2>Panel de Control Principal</h2>
+              <p class="text-muted">Resumen en tiempo real de operaciones, mantenimientos y alertas de hoy.</p>
+            </div>
+            <div class="actions">
+              <button class="btn btn-secondary btn-sm" onclick="App.reloadDashboardData()">
+                <i class="ri-refresh-line"></i> Actualizar
+              </button>
+            </div>
+          </div>
+
+          <!-- KPI Cards Grid -->
+          <div class="kpi-grid">
+            <div class="kpi-card">
+              <div class="kpi-icon icon-blue"><i class="ri-car-washing-line"></i></div>
+              <div class="kpi-info">
+                <span class="kpi-title">Vehículos en Taller</span>
+                <h3 class="kpi-value" id="kpi-active-vehicles">0</h3>
+                <span class="kpi-tag text-success"><i class="ri-arrow-up-line"></i> Turno activo</span>
+              </div>
+            </div>
+
+            <div class="kpi-card">
+              <div class="kpi-icon icon-amber"><i class="ri-alarm-warning-line"></i></div>
+              <div class="kpi-info">
+                <span class="kpi-title">Mantenimientos para Hoy</span>
+                <h3 class="kpi-value" id="kpi-pending-maintenance">0</h3>
+                <span class="kpi-tag text-warning">Alertas automáticas Make</span>
+              </div>
+            </div>
+
+            <div class="kpi-card">
+              <div class="kpi-icon icon-red"><i class="ri-alert-line"></i></div>
+              <div class="kpi-info">
+                <span class="kpi-title">Stock Bajo / Reposición</span>
+                <h3 class="kpi-value" id="kpi-low-stock">0</h3>
+                <span class="kpi-tag text-danger">Repuestos críticos</span>
+              </div>
+            </div>
+
+            <div class="kpi-card">
+              <div class="kpi-icon icon-green"><i class="ri-calendar-check-line"></i></div>
+              <div class="kpi-info">
+                <span class="kpi-title">Turnos Programados</span>
+                <h3 class="kpi-value" id="kpi-today-appointments">0</h3>
+                <span class="kpi-tag text-success">Calendly / Agenda</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Dashboard Two Column Grid -->
+          <div class="dashboard-grid">
+            <!-- Left: Today's Maintenance & Follow-ups -->
+            <div class="card">
+              <div class="card-header">
+                <h3><i class="ri-notification-badge-line"></i> Recordatorios de Mantenimiento (Hoy / Próximos)</h3>
+                <span class="badge badge-info">Sincronizado con Make</span>
+              </div>
+              <div class="card-body p-0">
+                <div class="table-responsive">
+                  <table class="data-table">
+                    <thead>
+                      <tr>
+                        <th>Patente</th>
+                        <th>Vehículo / Cliente</th>
+                        <th>Trabajo Previsto</th>
+                        <th>Teléfono</th>
+                        <th>Acción</th>
+                      </tr>
+                    </thead>
+                    <tbody id="dashboard-maintenance-table">
+                      <tr>
+                        <td colspan="5" class="text-center text-muted">Cargando mantenimientos...</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right: Low Stock Alert -->
+            <div class="card">
+              <div class="card-header">
+                <h3><i class="ri-error-warning-line"></i> Alertas de Insumos Críticos</h3>
+                <button class="btn btn-link btn-sm" onclick="App.navigateTo('stock')">Ver inventario</button>
+              </div>
+              <div class="card-body p-0">
+                <div class="table-responsive">
+                  <table class="data-table">
+                    <thead>
+                      <tr>
+                        <th>Insumo</th>
+                        <th>Stock Actual</th>
+                        <th>Mínimo</th>
+                        <th>Estado</th>
+                      </tr>
+                    </thead>
+                    <tbody id="dashboard-stock-alerts">
+                      <tr>
+                        <td colspan="4" class="text-center text-muted">No hay insumos críticos.</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+
+        <!-- 2. CLIENTS & VEHICLES ABM MODULE -->
+        <section id="module-clientes-vehiculos" class="module-section">
+          <div class="section-header">
+            <div>
+              <h2>Módulo de Clientes y Vehículos</h2>
+              <p class="text-muted">Alta unificada en un solo paso y administración del padrón del taller.</p>
+            </div>
+            <button class="btn btn-primary" id="btn-show-client-form">
+              <i class="ri-user-add-line"></i> Nuevo Cliente y Vehículo
+            </button>
+          </div>
+
+          <!-- Unified Form Card (Collapsible) -->
+          <div class="card form-card" id="unified-client-form-container" style="display: none;">
+            <div class="card-header">
+              <h3 id="client-form-title"><i class="ri-user-shared-line"></i> Alta Unificada de Cliente y Vehículo</h3>
+              <button class="btn-icon" id="btn-close-client-form"><i class="ri-close-line"></i></button>
+            </div>
+            <div class="card-body">
+              <form id="form-client-vehicle">
+                <input type="hidden" id="edit-client-id">
+                
+                <h4 class="form-section-title"><i class="ri-user-3-line"></i> Datos del Propietario / Cliente</h4>
+                <div class="form-grid-3">
+                  <div class="form-group">
+                    <label for="client-name">Nombre Completo *</label>
+                    <input type="text" id="client-name" class="form-control" required placeholder="Ej: Juan Pérez">
+                  </div>
+                  <div class="form-group">
+                    <label for="client-phone">Teléfono / WhatsApp *</label>
+                    <input type="tel" id="client-phone" class="form-control" required placeholder="Ej: +54 9 11 4444-5555">
+                  </div>
+                  <div class="form-group">
+                    <label for="client-email">Email</label>
+                    <input type="email" id="client-email" class="form-control" placeholder="juan.perez@email.com">
+                  </div>
+                </div>
+
+                <h4 class="form-section-title mt-4"><i class="ri-car-line"></i> Datos del Vehículo Principal</h4>
+                <div class="form-grid-4">
+                  <div class="form-group">
+                    <label for="vehicle-plate">Patente / Dominio *</label>
+                    <input type="text" id="vehicle-plate" class="form-control uppercase" required placeholder="AA123BB">
+                  </div>
+                  <div class="form-group">
+                    <label for="vehicle-brand">Marca *</label>
+                    <input type="text" id="vehicle-brand" class="form-control" required placeholder="Ej: Toyota, Ford, VW">
+                  </div>
+                  <div class="form-group">
+                    <label for="vehicle-model">Modelo *</label>
+                    <input type="text" id="vehicle-model" class="form-control" required placeholder="Ej: Hilux 2.8 SRX">
+                  </div>
+                  <div class="form-group">
+                    <label for="vehicle-year">Año Fabricación</label>
+                    <input type="number" id="vehicle-year" class="form-control" min="1970" max="2030" placeholder="2022">
+                  </div>
+                </div>
+
+                <div class="form-actions mt-4">
+                  <button type="button" class="btn btn-secondary" id="btn-cancel-client-form">Cancelar</button>
+                  <button type="submit" class="btn btn-primary" id="btn-save-client">
+                    <i class="ri-save-line"></i> Guardar Cliente y Vehículo
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <!-- Clients & Vehicles List -->
+          <div class="card mt-3">
+            <div class="card-header flex-between">
+              <div class="search-filter-group">
+                <div class="search-input-wrapper">
+                  <i class="ri-search-line"></i>
+                  <input type="text" id="filter-clients" placeholder="Filtrar por nombre, teléfono o patente...">
+                </div>
+                <select id="filter-client-status" class="form-select">
+                  <option value="all">Todos los Estados</option>
+                  <option value="active" selected>Sólo Activos</option>
+                  <option value="inactive">Inactivos / Bajas</option>
+                </select>
+              </div>
+              <span class="text-muted" id="total-clients-counter">0 registros encontrados</span>
+            </div>
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Cliente</th>
+                      <th>Contacto</th>
+                      <th>Vehículos Registrados</th>
+                      <th>Estado</th>
+                      <th>Acciones Rápidas</th>
+                    </tr>
+                  </thead>
+                  <tbody id="clients-table-body">
+                    <tr>
+                      <td colspan="5" class="text-center text-muted">Cargando padrón de clientes...</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+
+        <!-- 3. WORK ORDERS / WORKSHOP MODULE -->
+        <section id="module-taller" class="module-section">
+          <div class="section-header">
+            <div>
+              <h2>Módulo de Taller: Órdenes de Trabajo</h2>
+              <p class="text-muted">Registro de servicios realizados, kilometraje y fechas de próximo mantenimiento.</p>
+            </div>
+            <button class="btn btn-primary" id="btn-new-order-modal">
+              <i class="ri-file-add-line"></i> Registrar Nuevo Servicio
+            </button>
+          </div>
+
+          <!-- Order Form Modal/Card -->
+          <div class="card form-card" id="order-form-container" style="display: none;">
+            <div class="card-header">
+              <h3 id="order-form-title"><i class="ri-tools-line"></i> Registrar Servicio Técnico</h3>
+              <button class="btn-icon" id="btn-close-order-form"><i class="ri-close-line"></i></button>
+            </div>
+            <div class="card-body">
+              <form id="form-service-order">
+                <input type="hidden" id="service-id">
+
+                <div class="form-grid-3">
+                  <div class="form-group">
+                    <label for="order-plate">Patente del Vehículo *</label>
+                    <input type="text" id="order-plate" class="form-control uppercase" required placeholder="Buscar o ingresar patente">
+                    <small class="text-muted" id="order-vehicle-details">Autocompleta datos del vehículo</small>
+                  </div>
+                  <div class="form-group">
+                    <label for="order-date">Fecha de Servicio *</label>
+                    <input type="date" id="order-date" class="form-control" required>
+                  </div>
+                  <div class="form-group">
+                    <label for="order-mileage">Kilometraje Actual (km) *</label>
+                    <input type="number" id="order-mileage" class="form-control" required placeholder="Ej: 85000">
+                  </div>
+                </div>
+
+                <div class="form-group mt-3">
+                  <label for="order-work-done">Trabajo Realizado / Diagnóstico *</label>
+                  <textarea id="order-work-done" class="form-control" rows="3" required placeholder="Ej: Cambio de aceite 5W30 sintético, filtro de aceite, filtro de aire y pastillas de freno delanteras."></textarea>
+                </div>
+
+                <div class="form-grid-3 mt-3">
+                  <div class="form-group">
+                    <label for="order-next-maintenance">Próximo Mantenimiento (Fecha) *</label>
+                    <input type="date" id="order-next-maintenance" class="form-control" required>
+                    <small class="text-muted">Disparará alerta automática por WhatsApp</small>
+                  </div>
+                  <div class="form-group">
+                    <label for="order-cost">Costo Total ($ ARS / Moneda) *</label>
+                    <input type="number" id="order-cost" class="form-control" step="0.01" required placeholder="Ej: 45000.00">
+                  </div>
+                  <div class="form-group">
+                    <label for="order-payment-status">Estado del Pago</label>
+                    <select id="order-payment-status" class="form-select">
+                      <option value="Pendiente">Pendiente de Pago</option>
+                      <option value="Pagado">Pagado</option>
+                      <option value="MercadoPago">Enlace Mercado Pago Enviado</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="form-actions mt-4">
+                  <button type="button" class="btn btn-secondary" id="btn-cancel-order-form">Cancelar</button>
+                  <button type="submit" class="btn btn-primary">
+                    <i class="ri-check-double-line"></i> Guardar Orden de Trabajo
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <!-- Orders Table List -->
+          <div class="card mt-3">
+            <div class="card-header flex-between">
+              <div class="search-filter-group">
+                <div class="search-input-wrapper">
+                  <i class="ri-search-line"></i>
+                  <input type="text" id="filter-orders" placeholder="Buscar por patente, trabajo o estado...">
+                </div>
+              </div>
+              <span class="text-muted" id="total-orders-counter">0 servicios registrados</span>
+            </div>
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Fecha</th>
+                      <th>Patente</th>
+                      <th>Trabajo Realizado</th>
+                      <th>Kilometraje</th>
+                      <th>Próx. Service</th>
+                      <th>Monto</th>
+                      <th>Pago</th>
+                      <th>Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody id="orders-table-body">
+                    <tr>
+                      <td colspan="8" class="text-center text-muted">Cargando órdenes de trabajo...</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+
+        <!-- 4. PAYMENTS & MERCADO PAGO MODULE -->
+        <section id="module-cobros" class="module-section">
+          <div class="section-header">
+            <div>
+              <h2>Módulo de Cobros & Mercado Pago</h2>
+              <p class="text-muted">Generación dinámica de links de pago y cobro in-situ con Checkout Bricks.</p>
+            </div>
+          </div>
+
+          <div class="grid-2-cols">
+            <!-- Left: Payment generator for open orders -->
+            <div class="card">
+              <div class="card-header">
+                <h3><i class="ri-receipt-line"></i> Generador Rápido de Cobro</h3>
+              </div>
+              <div class="card-body">
+                <div class="form-group">
+                  <label for="mp-select-order">Seleccionar Orden de Trabajo Pendiente</label>
+                  <select id="mp-select-order" class="form-select">
+                    <option value="">-- Seleccionar Orden para Cobrar --</option>
+                  </select>
+                </div>
+
+                <div class="order-summary-box mt-3" id="mp-order-summary" style="display: none;">
+                  <div class="summary-row">
+                    <span>Vehículo:</span>
+                    <strong id="mp-summary-plate">-</strong>
+                  </div>
+                  <div class="summary-row">
+                    <span>Cliente:</span>
+                    <strong id="mp-summary-client">-</strong>
+                  </div>
+                  <div class="summary-row">
+                    <span>Concepto:</span>
+                    <span id="mp-summary-work">-</span>
+                  </div>
+                  <div class="summary-row total-row">
+                    <span>Total a Cobrar:</span>
+                    <strong class="text-primary fs-large" id="mp-summary-amount">$ 0.00</strong>
+                  </div>
+                </div>
+
+                <div class="button-stack mt-4">
+                  <button class="btn btn-mp-link w-100" id="btn-generate-mp-link">
+                    <i class="ri-links-line"></i> Generar Link de Pago (WhatsApp / Email)
+                  </button>
+                  <button class="btn btn-mp-brick w-100 mt-2" id="btn-init-brick">
+                    <i class="ri-bank-card-fill"></i> Cobrar en Mostrador (Checkout Brick)
+                  </button>
+                </div>
+
+                <div class="mp-link-result mt-3" id="mp-link-result-container" style="display: none;">
+                  <label>Enlace de Pago Generado:</label>
+                  <div class="input-copy-group">
+                    <input type="text" id="mp-generated-url" readonly class="form-control">
+                    <button class="btn btn-secondary" id="btn-copy-mp-link"><i class="ri-file-copy-line"></i> Copiar</button>
+                  </div>
+                  <p class="text-success small mt-1"><i class="ri-check-line"></i> Listo para enviar por WhatsApp al cliente.</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right: Semantic Container for Mercado Pago Checkout Bricks -->
+            <div class="card">
+              <div class="card-header">
+                <h3><i class="ri-secure-payment-line"></i> Mercado Pago Checkout Brick</h3>
+                <span class="badge badge-mp">SDK Oficial</span>
+              </div>
+              <div class="card-body">
+                <p class="text-muted small">Contenedor semántico preparado para renderizar el Brick de Pago (Tarjeta de Crédito/Débito, Dinero en Cuenta o QR).</p>
+                
+                <!-- Semantic Brick Container -->
+                <div id="mercadopago-brick-container" class="mercadopago-container">
+                  <div class="brick-placeholder" id="brick-placeholder-state">
+                    <i class="ri-bank-card-2-line placeholder-icon"></i>
+                    <p>Selecciona una orden y haz clic en <strong>"Cobrar en Mostrador"</strong> para desplegar la pasarela segura de Mercado Pago.</p>
+                  </div>
+                  <!-- The MP Brick SDK will inject its iframe/form inside this element -->
+                  <div id="paymentBrick_container"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+
+        <!-- 5. STOCK & INVENTORY MODULE -->
+        <section id="module-stock" class="module-section">
+          <div class="section-header">
+            <div>
+              <h2>Módulo de Stock de Repuestos e Insumos</h2>
+              <p class="text-muted">Control de existencia de aceites, filtros, pastillas y fluidos.</p>
+            </div>
+            <button class="btn btn-primary" id="btn-show-stock-form">
+              <i class="ri-add-box-line"></i> Nuevo Producto
+            </button>
+          </div>
+
+          <!-- Product Form Card -->
+          <div class="card form-card" id="stock-form-container" style="display: none;">
+            <div class="card-header">
+              <h3 id="stock-form-title"><i class="ri-box-3-line"></i> Registrar Insumo / Repuesto</h3>
+              <button class="btn-icon" id="btn-close-stock-form"><i class="ri-close-line"></i></button>
+            </div>
+            <div class="card-body">
+              <form id="form-stock-product">
+                <input type="hidden" id="stock-product-id">
+                <div class="form-grid-3">
+                  <div class="form-group">
+                    <label for="product-name">Nombre del Producto / Insumo *</label>
+                    <input type="text" id="product-name" class="form-control" required placeholder="Ej: Aceite Shell Helix Ultra 5W30 4L">
+                  </div>
+                  <div class="form-group">
+                    <label for="product-quantity">Cantidad en Stock *</label>
+                    <input type="number" id="product-quantity" class="form-control" min="0" required placeholder="Ej: 15">
+                  </div>
+                  <div class="form-group">
+                    <label for="product-reorder-point">Punto de Reposición (Mínimo) *</label>
+                    <input type="number" id="product-reorder-point" class="form-control" min="1" required placeholder="Ej: 5">
+                  </div>
+                </div>
+                <div class="form-actions mt-4">
+                  <button type="button" class="btn btn-secondary" id="btn-cancel-stock-form">Cancelar</button>
+                  <button type="submit" class="btn btn-primary">
+                    <i class="ri-save-line"></i> Guardar Producto
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <!-- Stock List -->
+          <div class="card mt-3">
+            <div class="card-header flex-between">
+              <div class="search-input-wrapper">
+                <i class="ri-search-line"></i>
+                <input type="text" id="filter-stock" placeholder="Buscar insumo o repuesto...">
+              </div>
+              <span class="text-muted" id="total-stock-counter">0 productos en catálogo</span>
+            </div>
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Código</th>
+                      <th>Producto / Insumo</th>
+                      <th>Stock Actual</th>
+                      <th>Punto de Reposición</th>
+                      <th>Estado</th>
+                      <th>Ajuste Rápido</th>
+                      <th>Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody id="stock-table-body">
+                    <tr>
+                      <td colspan="7" class="text-center text-muted">Cargando inventario...</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+
+        <!-- 6. TURNO / AGENDA MODULE (Calendly & Native) -->
+        <section id="module-turnos" class="module-section">
+          <div class="section-header">
+            <div>
+              <h2>Turnos & Agenda del Taller</h2>
+              <p class="text-muted">Integración directa con Calendly o calendario de turnos asignados.</p>
+            </div>
+            <div class="actions">
+              <button class="btn btn-secondary" onclick="App.openCalendlyConfig()">
+                <i class="ri-calendar-event-line"></i> Configurar Enlace Calendly
+              </button>
+            </div>
+          </div>
+
+          <div class="grid-2-cols">
+            <div class="card">
+              <div class="card-header">
+                <h3><i class="ri-time-line"></i> Turnos Registrados para Hoy</h3>
+              </div>
+              <div class="card-body">
+                <ul class="appointment-list" id="appointments-list">
+                  <li class="appointment-item">
+                    <div class="time-badge">09:00 hs</div>
+                    <div class="details">
+                      <strong>Carlos Gómez - Toyota Hilux (AB 234 CD)</strong>
+                      <p class="text-muted">Service de 10.000 km y alineación / balanceo</p>
+                    </div>
+                    <span class="badge badge-success">Confirmado</span>
+                  </li>
+                  <li class="appointment-item">
+                    <div class="time-badge">11:30 hs</div>
+                    <div class="details">
+                      <strong>Mariana Costa - Ford Fiesta (AC 890 ZX)</strong>
+                      <p class="text-muted">Revisión de frenos y cambio de pastillas</p>
+                    </div>
+                    <span class="badge badge-warning">En Espera</span>
+                  </li>
+                  <li class="appointment-item">
+                    <div class="time-badge">15:00 hs</div>
+                    <div class="details">
+                      <strong>Roberto Díaz - VW Amarok (AD 112 BB)</strong>
+                      <p class="text-muted">Cambio de correa de distribución y bomba de agua</p>
+                    </div>
+                    <span class="badge badge-info">Programado</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <h3><i class="ri-calendar-2-line"></i> Calendly Widget / Reservas Online</h3>
+              </div>
+              <div class="card-body text-center" id="calendly-container">
+                <div class="calendly-box">
+                  <i class="ri-calendar-todo-fill fs-huge text-primary"></i>
+                  <h4 class="mt-2">Agendamiento Online para Clientes</h4>
+                  <p class="text-muted">Comparte este enlace con tus clientes para que reserven su turno automáticamente sin llamadas.</p>
+                  <div class="input-copy-group mt-3">
+                    <input type="text" id="calendly-url" value="https://calendly.com/tu-taller-mecanico" class="form-control" readonly>
+                    <button class="btn btn-secondary" onclick="navigator.clipboard.writeText(document.getElementById('calendly-url').value); App.showToast('Enlace copiado al portapapeles', 'success')">
+                      <i class="ri-file-copy-line"></i> Copiar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- Supabase Credentials Modal -->
+  <div class="modal" id="modal-supabase-config">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3><i class="ri-database-2-line"></i> Conexión con Supabase</h3>
+        <button class="btn-icon" onclick="App.closeSupabaseModal()"><i class="ri-close-line"></i></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small">Ingresa la URL y la Anon Key de tu proyecto Supabase para sincronizar en la nube.</p>
+        <div class="form-group mt-3">
+          <label for="supabase-url">Supabase Project URL</label>
+          <input type="url" id="supabase-url" class="form-control" placeholder="https://xyzcompany.supabase.co">
+        </div>
+        <div class="form-group mt-3">
+          <label for="supabase-key">Supabase Anon / Public Key</label>
+          <input type="password" id="supabase-key" class="form-control" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
+        </div>
+        <div class="form-group mt-3">
+          <label for="mp-public-key">Mercado Pago Public Key (Opcional)</label>
+          <input type="text" id="mp-public-key" class="form-control" placeholder="TEST-xxxx-xxxx-xxxx">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="App.closeSupabaseModal()">Cancelar</button>
+        <button class="btn btn-primary" onclick="App.saveCredentials()">Guardar y Conectar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
